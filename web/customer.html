@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cafflow · Müşteri</title>
+  <style>
+    body{font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#f7f3ee; margin:0; padding:24px;}
+    .grid{display:grid; gap:12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));}
+    .card{background:#fff; border-radius:16px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); border:1px solid #e8ddd2;}
+    .btn{background:#c59a6c; color:#fff; border:none; padding:10px 14px; border-radius:12px; cursor:pointer;}
+    header{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+    h1{font-size:20px; margin:0;}
+    .muted{color:#6b7280; font-size:12px;}
+    .toast{position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#111827; color:#fff; padding:10px 16px; border-radius:12px; display:none;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>☕ Cafflow · Müşteri</h1>
+    <div class="muted">Demo — QR yerine bu sayfayı kullan</div>
+  </header>
+
+  <div class="grid" id="menu"></div>
+
+  <div id="toast" class="toast">Sepete eklendi</div>
+
+<script>
+const API = 'http://localhost:4000';
+const MENU = [
+  { id:'latte', name:'Latte', price:95, options:{milk:['Süt','Yulaf','Badem'], temp:[60,65,70]} },
+  { id:'americano', name:'Americano', price:75, options:{size:['S','M','L']} },
+  { id:'espresso', name:'Espresso', price:65, options:{shot:[1,2]} },
+];
+
+const menuEl = document.getElementById('menu');
+const toast = document.getElementById('toast');
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  setTimeout(()=> toast.style.display='none', 1200);
+}
+
+function card(item){
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.innerHTML = `
+    <div style="font-weight:700">${item.name}</div>
+    <div class="muted">${item.price} ₺</div>
+    <div style="margin:8px 0; display:flex; gap:6px; flex-wrap:wrap;">
+      ${item.options?.milk ? `<select id="milk-${item.id}">${item.options.milk.map(v=>`<option>${v}</option>`).join('')}</select>`:''}
+      ${item.options?.temp ? `<select id="temp-${item.id}">${item.options.temp.map(v=>`<option>${v}</option>`).join('')}</select>`:''}
+      ${item.options?.size ? `<select id="size-${item.id}">${item.options.size.map(v=>`<option>${v}</option>`).join('')}</select>`:''}
+      ${item.options?.shot ? `<select id="shot-${item.id}">${item.options.shot.map(v=>`<option>${v}</option>`).join('')}</select>`:''}
+    </div>
+    <button class="btn" id="add-${item.id}">Sepete Ekle</button>
+  `;
+  div.querySelector(`#add-${item.id}`).onclick = async () => {
+    const customizations = {};
+    const milk = div.querySelector(`#milk-${item.id}`)?.value;
+    const temp = div.querySelector(`#temp-${item.id}`)?.value;
+    const size = div.querySelector(`#size-${item.id}`)?.value;
+    const shot = div.querySelector(`#shot-${item.id}`)?.value;
+    if(milk) customizations.milk = milk;
+    if(temp) customizations.temp = Number(temp);
+    if(size) customizations.size = size;
+    if(shot) customizations.shot = Number(shot);
+
+    const payload = {
+      items: [{ name: item.name, qty: 1, price: item.price, customizations }],
+      source: 'QR'
+    };
+    try{
+      const r = await fetch(`${API}/orders`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if(!r.ok) throw new Error('Sipariş oluşturulamadı');
+      const data = await r.json();
+      showToast(`#${data.shortId} oluşturuldu`);
+    }catch(e){
+      alert('Hata: '+e.message);
+    }
+  };
+  return div;
+}
+
+MENU.forEach(m => menuEl.appendChild(card(m)));
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cafflow · Barista KDS</title>
+  <style>
+    body{font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#f7f3ee; margin:0; padding:24px;}
+    .col{display:grid; gap:12px;}
+    .wrap{display:grid; gap:16px; grid-template-columns: repeat(auto-fit, minmax(280px,1fr));}
+    .card{background:#fff; border-radius:16px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.08); border:1px solid #e8ddd2;}
+    .btn{background:#111827; color:#fff; border:none; padding:10px 14px; border-radius:12px; cursor:pointer;}
+    .btn.secondary{background:#c59a6c;}
+    header{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+    h1{font-size:20px; margin:0;}
+    .muted{color:#6b7280; font-size:12px;}
+    .badge{display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; background:#e5e7eb;}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>☕ Cafflow · Barista KDS</h1>
+    <div class="muted">Durumları güncelleyin · PENDING → IN_PROGRESS → READY → SERVED</div>
+  </header>
+
+  <div class="wrap" id="orders"></div>
+
+<script>
+const API = 'http://localhost:4000';
+
+function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+
+async function load(){
+  const r = await fetch(`${API}/orders`, { cache:'no-store' });
+  const orders = await r.json();
+  const container = document.getElementById('orders');
+  container.innerHTML='';
+  orders.forEach(o=> container.appendChild(orderCard(o)));
+}
+
+function orderCard(o){
+  const items = o.items.map(it=> `<li>${it.qty}× ${it.name} ${it.customizations?.milk? '· '+it.customizations.milk:''}</li>`).join('');
+  const card = el(`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-weight:700">#${o.shortId}</div>
+        <span class="badge">${o.status}</span>
+      </div>
+      <ul style="margin:10px 0 14px 18px;">${items}</ul>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" data-s="IN_PROGRESS">Başla</button>
+        <button class="btn secondary" data-s="READY">Hazır</button>
+        <button class="btn" data-s="SERVED">Teslim</button>
+      </div>
+    </div>
+  `);
+  card.querySelectorAll('button').forEach(btn=>{
+    btn.onclick = async () => {
+      const status = btn.getAttribute('data-s');
+      const r = await fetch(`${API}/orders/${o.id}/status`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ status })
+      });
+      if(r.ok) load();
+    };
+  });
+  return card;
+}
+
+load();
+setInterval(load, 1500);
+</script>
+</body>
+</html>
